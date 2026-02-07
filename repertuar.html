@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Repertuar Listesi</title>
+
+  <!-- Google Drive entegrasyonu (kurulum şart) -->
+  <script async defer src="https://apis.google.com/js/api.js"></script>
+  <script async defer src="https://accounts.google.com/gsi/client"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel2:rgba(255,255,255,0.03);
+      --line:rgba(255,255,255,0.10);
+      --text:#e7eef7;
+      --muted:#93a4b8;
+      --accent:#2dd4bf;
+      --danger:#fb7185;
+      --shadow:0 12px 30px rgba(0,0,0,0.35);
+      --r:14px;
+      --font:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    }
+    body{
+      margin:0;
+      font-family:var(--font);
+      background:
+        radial-gradient(1200px 800px at 20% 0%, rgba(45,212,191,0.10), transparent 55%),
+        radial-gradient(1000px 700px at 90% 10%, rgba(59,130,246,0.10), transparent 50%),
+        var(--bg);
+      color:var(--text);
+    }
+    header{
+      position:sticky; top:0; z-index:10;
+      backdrop-filter: blur(10px);
+      background: rgba(11,15,20,0.72);
+      border-bottom:1px solid var(--line);
+    }
+    .wrap{max-width:1400px;margin:0 auto;padding:16px;}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+    .title{display:flex;flex-direction:column;gap:4px}
+    .title h1{margin:0;font-size:18px;letter-spacing:.2px}
+    .title p{margin:0;color:var(--muted);font-size:13px}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+    input,button,textarea,select{font-family:var(--font);font-size:14px;color:var(--text)}
+    .search{
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      min-width:240px;
+      outline:none;
+    }
+    .search:focus{border-color:rgba(45,212,191,0.5);box-shadow:0 0 0 3px rgba(45,212,191,0.12)}
+    .btn{
+      background:rgba(45,212,191,0.12);
+      border:1px solid rgba(45,212,191,0.25);
+      border-radius:12px;
+      padding:10px 12px;
+      cursor:pointer;
+      user-select:none;
+      transition: transform .06s ease, background .2s ease;
+      white-space:nowrap;
+    }
+    .btn:hover{background:rgba(45,212,191,0.18)}
+    .btn:active{transform:translateY(1px)}
+    .btn-secondary{
+      background:rgba(255,255,255,0.06);
+      border:1px solid var(--line);
+    }
+    .btn-danger{
+      background:rgba(251,113,133,0.12);
+      border:1px solid rgba(251,113,133,0.25);
+      color:#ffd7de;
+    }
+    .btn-xs{padding:8px 10px;border-radius:10px;font-size:13px}
+
+    /* Layout */
+    .layout{
+      display:grid;
+      grid-template-columns: 300px 1fr;
+      gap:16px;
+      margin-top:16px;
+    }
+    @media(max-width:980px){
+      .layout{grid-template-columns: 1fr;}
+    }
+
+    .sidebar{
+      background:var(--panel2);
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .sideHead{
+      padding:14px 14px 10px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .sideBody{padding:12px 14px;display:grid;gap:12px;}
+    .sideGroup{display:grid;gap:8px;}
+    .sideLabel{font-size:12px;color:var(--muted)}
+    .sideBox{
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px;
+      max-height:220px;
+      overflow:auto;
+    }
+    .chk{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 2px;}
+    .chk input{transform: scale(1.05);}
+
+    .mainCard{
+      background:var(--panel2);
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    table{width:100%;border-collapse:collapse}
+    thead th{
+      text-align:left;
+      color:var(--muted);
+      font-size:13px;
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      cursor:pointer;
+      user-select:none;
+      white-space:nowrap;
+    }
+    thead th .sort{font-size:11px;opacity:.85;margin-left:6px}
+    tbody td{
+      padding:12px 12px;
+      border-bottom:1px solid rgba(255,255,255,0.06);
+      vertical-align:top;
+      font-size:14px;
+    }
+    tbody tr:hover{background:rgba(255,255,255,0.03)}
+    .clickable{color:var(--accent);cursor:pointer}
+    .clickable:hover{text-decoration:underline}
+    .muted{color:var(--muted)}
+    .footer{
+      padding:10px 12px;
+      display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
+      font-size:12px;color:var(--muted);
+    }
+    .pill{
+      padding:6px 10px;border:1px solid var(--line);border-radius:999px;
+      background:rgba(255,255,255,0.04);
+    }
+
+    /* Modal */
+    .backdrop{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,0.55);
+      display:none;
+      align-items:center; justify-content:center;
+      padding:18px; z-index:999;
+    }
+    .modal{
+      width:min(980px,100%);
+      height:min(92vh, 900px);
+      background:rgba(15,22,32,0.96);
+      border:1px solid var(--line);
+      border-radius:16px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .modal .mhead{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      flex:0 0 auto;
+      flex-wrap:wrap;
+    }
+    .modal .mhead h2{margin:0;font-size:16px}
+    .modal .mbody{
+      padding:14px 16px;
+      display:grid;
+      gap:10px;
+      overflow:auto;
+      flex:1 1 auto;
+    }
+    .modal textarea{
+      width:100%;
+      min-height:520px;
+      resize:vertical;
+      padding:12px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--line);
+      outline:none;
+      line-height:1.45;
+    }
+    .modal textarea:focus{border-color:rgba(45,212,191,0.5);box-shadow:0 0 0 3px rgba(45,212,191,0.12)}
+    .modal .mactions{
+      display:flex;justify-content:flex-end;gap:10px;
+      padding:12px 16px 16px;
+      border-top:1px solid rgba(255,255,255,0.06);
+      flex:0 0 auto;
+      flex-wrap:wrap;
+    }
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    @media(max-width:820px){
+      .grid2,.grid3{grid-template-columns:1fr}
+      .search{min-width:180px;width:100%}
+    }
+
+    .toast{
+      position:fixed; right:16px; bottom:16px;
+      background:rgba(15,22,32,0.95);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      box-shadow:var(--shadow);
+      display:none;
+      max-width:360px;
+      z-index:1000;
+    }
+    .toast .t{color:var(--muted);font-size:12px;margin-top:4px}
+
+    .miniNote{
+      font-size:12px;color:var(--muted);line-height:1.35;
+      border:1px dashed rgba(255,255,255,0.12);
+      padding:10px 12px;border-radius:12px;
+      background:rgba(255,255,255,0.03);
+    }
+    .actionsCell{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+    /* Setlist */
+    .setCard{
+      background:rgba(255,255,255,0.04);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:12px;
+      display:grid;
+      gap:10px;
+    }
+    .setRow{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+      padding:10px 10px;
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:12px;
+      background:rgba(255,255,255,0.03);
+    }
+    .dragHandle{
+      cursor:grab;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius:10px;
+      background:rgba(255,255,255,0.04);
+      color:var(--muted);
+      font-size:12px;
+      user-select:none;
+    }
+    .setRow.dragging{opacity:0.65}
+    .setTitle{display:flex;flex-direction:column;gap:2px}
+    .setTitle b{font-size:14px}
+    .setTitle span{font-size:12px;color:var(--muted)}
+    .setBtns{display:flex;gap:8px;flex-wrap:wrap}
+    .divider{height:1px;background:rgba(255,255,255,0.08);margin:8px 0}
+  </style>
+</head>
+
+<body>
+<header>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">
+        <h1>Repertuar Listesi</h1>
+        <p>Modlar: Repertuar / Setlist • Drive yedek: aynı dosya adı bulunur → overwrite</p>
+      </div>
+      <div class="controls">
+        <button class="btn btn-secondary" id="btnModeRep">Repertuar</button>
+        <button class="btn" id="btnModeSet">Setlist Modu</button>
+
+        <input id="search" class="search" placeholder="Ara: parça / tür / not..." />
+        <button class="btn" id="btnAdd">+ Yeni Parça</button>
+
+        <button class="btn btn-secondary" id="btnExport">Dışa Aktar (JSON)</button>
+        <button class="btn btn-secondary" id="btnImport">İçe Aktar (JSON)</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none"/>
+
+        <button class="btn" id="btnDriveBackup">Drive’a Yedekle</button>
+        <button class="btn btn-secondary" id="btnDriveRestore">Drive’dan Geri Yükle</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Repertuar View -->
+  <div id="viewRepertuar">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sideHead">
+          <div class="h">Hızlı Filtreler</div>
+          <button class="btn btn-secondary btn-xs" id="btnClearFilters">Temizle</button>
+        </div>
+        <div class="sideBody">
+          <div class="sideGroup">
+            <div class="sideLabel">Tür</div>
+            <div class="sideBox" id="filterTur"></div>
+          </div>
+          <div class="sideGroup">
+            <div class="sideLabel">Style</div>
+            <div class="sideBox" id="filterStyle"></div>
+          </div>
+
+          <div class="miniNote">
+            <b>Drive:</b> OAuth için <b>CLIENT_ID</b> + <b>API_KEY</b> gerekir.
+            Local file (file://) yerine küçük bir server ile açmak daha stabil:
+            <div style="margin-top:6px"><code>python3 -m http.server 8080</code></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="mainCard">
+        <table>
+          <thead><tr id="thead"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="footer">
+          <div class="pill" id="countInfo">—</div>
+          <div class="muted">Düzenle = tüm satır, Parça adı = sözler, Chord/Notlar = popup</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Setlist View -->
+  <div id="viewSetlist" style="display:none">
+    <div class="mainCard" style="padding:14px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="font-size:16px"><b>Setlist</b></div>
+          <div class="muted" style="font-size:13px">Sürükle-bırak ile sırala • Setlist yedeklemede JSON’a dahil</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input id="setSearch" class="search" placeholder="Setlist’e eklemek için parça ara..." />
+          <button class="btn btn-secondary" id="btnSetClear">Setlist’i Temizle</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="setCard">
+        <div class="muted" style="font-size:13px">Ekleme sonuçları (tıkla → setlist’e ekle):</div>
+        <div id="setAddResults" class="sideBox" style="max-height:180px"></div>
+
+        <div class="divider"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+          <div class="muted" style="font-size:13px">Setlist sırası:</div>
+          <div class="pill" id="setCount">—</div>
+        </div>
+
+        <div id="setList"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="backdrop" id="backdrop" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="mhead">
+      <h2 id="mTitle">Düzenle</h2>
+      <button class="btn btn-secondary" id="mClose">Kapat</button>
+    </div>
+    <div class="mbody" id="mBody"></div>
+    <div class="mactions" id="mActions"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast">
+  <div id="toastMain">—</div>
+  <div class="t" id="toastSub">—</div>
+</div>
+
+<script>
+  // ====== Config ======
+  const STORAGE_KEY = "repertuar_db_v3";
+  const SETLIST_KEY = "repertuar_setlist_v1";
+
+  const COLS = [
+    { key:"parcaAdi", label:"Parça adı" },
+    { key:"tempo", label:"Tempo" },
+    { key:"olcu", label:"Ölçü" },
+    { key:"style", label:"Style" },
+    { key:"chord", label:"Chord" },
+    { key:"tur", label:"Tür" },
+    { key:"notlar", label:"Notlar" },
+    { key:"_actions", label:"" }
+  ];
+
+  // ===== Drive setup placeholders =====
+  const GOOGLE_API_KEY = "";   // <-- API KEY
+  const GOOGLE_CLIENT_ID = ""; // <-- OAuth Client ID
+  const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.file";
+  const DRIVE_FILENAME = "repertuar-backup.json";
+  const DRIVE_FILE_ID_KEY = "repertuar_drive_file_id_v2";
+
+  let tokenClient = null;
+  let accessToken = null;
+  let gapiInited = false;
+  let gisInited = false;
+
+  // ====== State ======
+  let db = [];
+  let view = [];
+  let sortState = { key:"parcaAdi", dir:"asc" };
+  let searchTerm = "";
+
+  // Filters
+  const selectedTur = new Set();
+  const selectedStyle = new Set();
+
+  // Setlist (array of ids)
+  let setlist = [];
+
+  const $ = (id)=>document.getElementById(id);
+  const nowISO = ()=> new Date().toISOString();
+  const uid = ()=> Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+
+  function toast(main, sub=""){
+    $("toastMain").textContent = main;
+    $("toastSub").textContent = sub;
+    $("toast").style.display = "block";
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=> $("toast").style.display="none", 2400);
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      db = raw ? JSON.parse(raw) : [];
+      if(!Array.isArray(db)) db = [];
+    }catch(e){ db = []; }
+
+    try{
+      const rawS = localStorage.getItem(SETLIST_KEY);
+      setlist = rawS ? JSON.parse(rawS) : [];
+      if(!Array.isArray(setlist)) setlist = [];
+    }catch(e){ setlist = []; }
+  }
+
+  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
+  function saveSet(){ localStorage.setItem(SETLIST_KEY, JSON.stringify(setlist)); }
+
+  function safe(v){ return (v===null||v===undefined) ? "" : String(v); }
+
+  function getById(id){ return db.find(x=>x.id===id); }
+
+  function getDistinctValues(key){
+    const set = new Set();
+    db.forEach(r=>{
+      const v = safe(r[key]).trim();
+      if(v) set.add(v);
+    });
+    return Array.from(set).sort((a,b)=>a.localeCompare(b,"tr",{sensitivity:"base"}));
+  }
+
+  function renderFilters(){
+    const turBox = $("filterTur");
+    turBox.innerHTML = "";
+    const turVals = getDistinctValues("tur");
+    if(turVals.length === 0) turBox.innerHTML = `<div class="muted" style="font-size:12px">Henüz tür yok.</div>`;
+    else turVals.forEach(v=>{
+      const row = document.createElement("label");
+      row.className = "chk";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selectedTur.has(v);
+      cb.addEventListener("change", ()=>{
+        if(cb.checked) selectedTur.add(v); else selectedTur.delete(v);
+        apply(); renderTable();
+      });
+      row.appendChild(cb);
+      row.appendChild(document.createElement("span")).textContent = v;
+      turBox.appendChild(row);
+    });
+
+    const styleBox = $("filterStyle");
+    styleBox.innerHTML = "";
+    const styleVals = getDistinctValues("style");
+    if(styleVals.length === 0) styleBox.innerHTML = `<div class="muted" style="font-size:12px">Henüz style yok.</div>`;
+    else styleVals.forEach(v=>{
+      const row = document.createElement("label");
+      row.className = "chk";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = selectedStyle.has(v);
+      cb.addEventListener("change", ()=>{
+        if(cb.checked) selectedStyle.add(v); else selectedStyle.delete(v);
+        apply(); renderTable();
+      });
+      row.appendChild(cb);
+      row.appendChild(document.createElement("span")).textContent = v;
+      styleBox.appendChild(row);
+    });
+  }
+
+  function apply(){
+    const t = searchTerm.trim().toLowerCase();
+    let rows = db;
+
+    if(selectedTur.size > 0) rows = rows.filter(r => selectedTur.has(safe(r.tur).trim()));
+    if(selectedStyle.size > 0) rows = rows.filter(r => selectedStyle.has(safe(r.style).trim()));
+
+    if(t){
+      rows = rows.filter(r=>{
+        const hay = [r.parcaAdi, r.tempo, r.olcu, r.style, r.chord, r.tur, r.notlar]
+          .map(x=>safe(x).toLowerCase()).join(" | ");
+        return hay.includes(t);
+      });
+    }
+
+    view = sortRows(rows);
+    $("countInfo").textContent = `${view.length} kayıt`;
+  }
+
+  function sortRows(rows){
+    const {key, dir} = sortState;
+    const sign = dir==="asc" ? 1 : -1;
+    return [...rows].sort((a,b)=>{
+      const av = safe(a[key]).trim();
+      const bv = safe(b[key]).trim();
+      const an = Number(av.replace(",","."));
+      const bn = Number(bv.replace(",","."));
+      const bothNumeric = av!=="" && bv!=="" && !Number.isNaN(an) && !Number.isNaN(bn);
+      if(bothNumeric) return (an - bn) * sign;
+      return av.localeCompare(bv, "tr", {sensitivity:"base"}) * sign;
+    });
+  }
+
+  function renderHeader(){
+    const tr = $("thead");
+    tr.innerHTML = "";
+    COLS.forEach(c=>{
+      const th = document.createElement("th");
+      th.textContent = c.label;
+      if(c.key !== "_actions"){
+        const sp = document.createElement("span");
+        sp.className = "sort";
+        sp.textContent = (sortState.key===c.key) ? (sortState.dir==="asc" ? "▲" : "▼") : "";
+        th.appendChild(sp);
+        th.addEventListener("click", ()=>{
+          if(sortState.key===c.key) sortState.dir = (sortState.dir==="asc") ? "desc" : "asc";
+          else { sortState.key = c.key; sortState.dir = "asc"; }
+          apply(); renderHeader(); renderTable();
+        });
+      }
+      tr.appendChild(th);
+    });
+  }
+
+  function renderTable(){
+    const tb = $("tbody");
+    tb.innerHTML = "";
+    view.forEach(r=>{
+      const tr = document.createElement("tr");
+      COLS.forEach(c=>{
+        const td = document.createElement("td");
+        if(c.key === "_actions"){
+          const wrap = document.createElement("div");
+          wrap.className = "actionsCell";
+
+          const edit = document.createElement("button");
+          edit.className = "btn btn-secondary btn-xs";
+          edit.textContent = "Düzenle";
+          edit.addEventListener("click", ()=> openEditRow(r.id));
+
+          const del = document.createElement("button");
+          del.className = "btn btn-danger btn-xs";
+          del.textContent = "Sil";
+          del.addEventListener("click", ()=> deleteRow(r.id));
+
+          wrap.appendChild(edit);
+          wrap.appendChild(del);
+          td.appendChild(wrap);
+        } else if(c.key === "parcaAdi"){
+          const a = document.createElement("span");
+          a.className = "clickable";
+          a.textContent = safe(r.parcaAdi) || "(isimsiz)";
+          a.addEventListener("click", ()=> openLyrics(r.id));
+          td.appendChild(a);
+        } else if(c.key === "chord"){
+          const a = document.createElement("span");
+          a.className = "clickable";
+          a.textContent = safe(r.chord) || "(düzenle)";
+          a.addEventListener("click", ()=> openChord(r.id));
+          td.appendChild(a);
+        } else if(c.key === "notlar"){
+          const a = document.createElement("span");
+          a.className = "clickable";
+          a.textContent = safe(r.notlar) || "(düzenle)";
+          a.addEventListener("click", ()=> openNotes(r.id));
+          td.appendChild(a);
+        } else {
+          td.textContent = safe(r[c.key]);
+          td.style.cursor = "text";
+          td.addEventListener("dblclick", ()=> openInlineEdit(r.id, c.key, c.label));
+        }
+        tr.appendChild(td);
+      });
+      tb.appendChild(tr);
+    });
+  }
+
+  // ===== Modal helpers =====
+  function openModal(title, bodyNodes, actionNodes){
+    $("mTitle").textContent = title;
+    const body = $("mBody");
+    const act = $("mActions");
+    body.innerHTML = "";
+    act.innerHTML = "";
+    bodyNodes.forEach(n=>body.appendChild(n));
+    actionNodes.forEach(n=>act.appendChild(n));
+    $("backdrop").style.display = "flex";
+  }
+  function closeModal(){ $("backdrop").style.display = "none"; }
+
+  function btn(text, cls="btn"){
+    const b = document.createElement("button");
+    b.className = cls;
+    b.textContent = text;
+    return b;
+  }
+  function label(text){
+    const d = document.createElement("div");
+    d.className = "muted";
+    d.style.fontSize = "13px";
+    d.textContent = text;
+    return d;
+  }
+  function textarea(val="", ph=""){
+    const ta = document.createElement("textarea");
+    ta.value = val;
+    ta.placeholder = ph;
+    return ta;
+  }
+  function input(val="", ph=""){
+    const i = document.createElement("input");
+    i.value = val;
+    i.placeholder = ph;
+    i.className = "search";
+    i.style.minWidth="0";
+    i.style.width="100%";
+    return i;
+  }
+
+  function patch(id, p){
+    const r = getById(id);
+    if(!r) return;
+    Object.assign(r, p, { updatedAt: nowISO() });
+    save();
+    renderFilters();
+    apply(); renderTable();
+    renderSetlist(); // setlist view open olabilir
+  }
+
+  // ===== Repertuar CRUD =====
+  function addRow(){
+    const f = {
+      parcaAdi: input("", "Parça adı"),
+      tempo: input("", "Tempo"),
+      olcu: input("", "Ölçü"),
+      style: input("", "Style"),
+      chord: input("", "Chord (kısa)"),
+      tur: input("", "Tür"),
+      notlar: input("", "Notlar (kısa)")
+    };
+
+    const grid = document.createElement("div");
+    grid.className = "grid3";
+    const field = (lbl, el)=>{ const w=document.createElement("div"); w.appendChild(label(lbl)); w.appendChild(el); return w; };
+    grid.appendChild(field("Parça adı", f.parcaAdi));
+    grid.appendChild(field("Tempo", f.tempo));
+    grid.appendChild(field("Ölçü", f.olcu));
+    grid.appendChild(field("Style", f.style));
+    grid.appendChild(field("Chord", f.chord));
+    grid.appendChild(field("Tür", f.tur));
+    grid.appendChild(field("Notlar", f.notlar));
+
+    const saveBtn = btn("Ekle");
+    saveBtn.addEventListener("click", ()=>{
+      const parca = f.parcaAdi.value.trim();
+      if(!parca){ toast("Parça adı boş olamaz"); return; }
+      db.push({
+        id: uid(),
+        parcaAdi: parca,
+        tempo: f.tempo.value.trim(),
+        olcu: f.olcu.value.trim(),
+        style: f.style.value.trim(),
+        chord: f.chord.value.trim(),
+        tur: f.tur.value.trim(),
+        notlar: f.notlar.value.trim(),
+        sozler: "",
+        chordDetay: "",
+        createdAt: nowISO(),
+        updatedAt: nowISO()
+      });
+      save();
+      closeModal();
+      renderFilters();
+      apply(); renderTable();
+      toast("Eklendi", parca);
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal("Yeni Parça", [grid], [cancel, saveBtn]);
+  }
+
+  function openEditRow(id){
+    const r = getById(id); if(!r) return;
+    const f = {
+      parcaAdi: input(r.parcaAdi||"", "Parça adı"),
+      tempo: input(r.tempo||"", "Tempo"),
+      olcu: input(r.olcu||"", "Ölçü"),
+      style: input(r.style||"", "Style"),
+      chord: input(r.chord||"", "Chord (kısa)"),
+      tur: input(r.tur||"", "Tür"),
+      notlar: input(r.notlar||"", "Notlar (kısa)")
+    };
+    const grid = document.createElement("div");
+    grid.className = "grid3";
+    const field = (lbl, el)=>{ const w=document.createElement("div"); w.appendChild(label(lbl)); w.appendChild(el); return w; };
+    grid.appendChild(field("Parça adı", f.parcaAdi));
+    grid.appendChild(field("Tempo", f.tempo));
+    grid.appendChild(field("Ölçü", f.olcu));
+    grid.appendChild(field("Style", f.style));
+    grid.appendChild(field("Chord", f.chord));
+    grid.appendChild(field("Tür", f.tur));
+    grid.appendChild(field("Notlar", f.notlar));
+
+    const saveBtn = btn("Kaydet");
+    saveBtn.addEventListener("click", ()=>{
+      const parca = f.parcaAdi.value.trim();
+      if(!parca){ toast("Parça adı boş olamaz"); return; }
+      patch(id, {
+        parcaAdi: parca,
+        tempo: f.tempo.value.trim(),
+        olcu: f.olcu.value.trim(),
+        style: f.style.value.trim(),
+        chord: f.chord.value.trim(),
+        tur: f.tur.value.trim(),
+        notlar: f.notlar.value.trim()
+      });
+      closeModal();
+      toast("Güncellendi", parca);
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal(`Düzenle: ${r.parcaAdi || "(isimsiz)"}`, [grid], [cancel, saveBtn]);
+  }
+
+  function deleteRow(id){
+    const r = getById(id); if(!r) return;
+    const warn = document.createElement("div");
+    warn.innerHTML = `<div class="muted" style="font-size:13px"><b>${safe(r.parcaAdi)}</b> silinsin mi? Geri dönüş yok.</div>`;
+
+    const ok = btn("Sil", "btn btn-danger");
+    ok.addEventListener("click", ()=>{
+      db = db.filter(x=>x.id!==id);
+      // setlist'ten de çıkar
+      setlist = setlist.filter(x=>x!==id);
+      save(); saveSet();
+      closeModal();
+      renderFilters();
+      apply(); renderTable();
+      renderSetlist();
+      toast("Silindi", r.parcaAdi || "");
+    });
+
+    const cancel = btn("Vazgeç", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal("Silme Onayı", [warn], [cancel, ok]);
+  }
+
+  function openLyrics(id){
+    const r = getById(id); if(!r) return;
+    const ta = textarea(r.sozler||"", "Şarkı sözlerini buraya yaz…");
+    ta.style.minHeight = "65vh";
+
+    const saveBtn = btn("Kaydet");
+    saveBtn.addEventListener("click", ()=>{
+      patch(id, { sozler: ta.value });
+      closeModal();
+      toast("Kaydedildi", r.parcaAdi || "");
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal(`Sözler: ${r.parcaAdi || "(isimsiz)"}`, [ta], [cancel, saveBtn]);
+  }
+
+  function openNotes(id){
+    const r = getById(id); if(!r) return;
+    const ta = textarea(r.notlar||"", "Notlarını buraya yaz…");
+    ta.style.minHeight = "55vh";
+
+    const saveBtn = btn("Kaydet");
+    saveBtn.addEventListener("click", ()=>{
+      patch(id, { notlar: ta.value });
+      closeModal();
+      toast("Kaydedildi", r.parcaAdi || "");
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal(`Notlar: ${r.parcaAdi || "(isimsiz)"}`, [ta], [cancel, saveBtn]);
+  }
+
+  function openChord(id){
+    const r = getById(id); if(!r) return;
+
+    const chordMain = textarea(r.chord||"", "Chord (örn: Am | G | F | E)…");
+    chordMain.style.minHeight = "220px";
+    const detail = textarea(r.chordDetay||"", "Notalar / chord notları / açıklamalar…");
+    detail.style.minHeight = "320px";
+
+    const grid = document.createElement("div");
+    grid.className = "grid2";
+
+    const left = document.createElement("div");
+    left.appendChild(label("Chord"));
+    left.appendChild(chordMain);
+
+    const right = document.createElement("div");
+    right.appendChild(label("Notalar & Notlar"));
+    right.appendChild(detail);
+
+    grid.appendChild(left);
+    grid.appendChild(right);
+
+    const saveBtn = btn("Kaydet");
+    saveBtn.addEventListener("click", ()=>{
+      patch(id, { chord: chordMain.value, chordDetay: detail.value });
+      closeModal();
+      toast("Kaydedildi", r.parcaAdi || "");
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    openModal(`Chord: ${r.parcaAdi || "(isimsiz)"}`, [grid], [cancel, saveBtn]);
+  }
+
+  function openInlineEdit(id, key, labelText){
+    const r = getById(id); if(!r) return;
+    const i = input(r[key] || "", `${labelText}...`);
+
+    const saveBtn = btn("Kaydet");
+    saveBtn.addEventListener("click", ()=>{
+      patch(id, { [key]: i.value });
+      closeModal();
+      toast("Güncellendi", `${r.parcaAdi || ""} • ${labelText}`);
+    });
+
+    const cancel = btn("İptal", "btn btn-secondary");
+    cancel.addEventListener("click", closeModal);
+
+    const wrap = document.createElement("div");
+    wrap.appendChild(label(labelText));
+    wrap.appendChild(i);
+
+    openModal(`Düzenle: ${r.parcaAdi || "(isimsiz)"}`, [wrap], [cancel, saveBtn]);
+    setTimeout(()=> i.focus(), 0);
+  }
+
+  function clearFilters(){
+    selectedTur.clear();
+    selectedStyle.clear();
+    renderFilters();
+    apply(); renderTable();
+    toast("Filtreler temizlendi");
+  }
+
+  // ===== Export/Import (local JSON) =====
+  function buildBackupObject(){
+    return {
+      version: 1,
+      exportedAt: nowISO(),
+      db,
+      setlist
+    };
+  }
+
+  function exportJSON(){
+    const blob = new Blob([JSON.stringify(buildBackupObject(), null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `repertuar-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast("Dışa aktarıldı", "JSON dosyası indirildi");
+  }
+
+  function importJSON(file){
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      try{
+        const parsed = JSON.parse(fr.result);
+        if(parsed && parsed.db && Array.isArray(parsed.db)){
+          db = normalizeDb(parsed.db);
+          setlist = Array.isArray(parsed.setlist) ? parsed.setlist : [];
+        } else if(Array.isArray(parsed)){
+          // legacy: sadece db array
+          db = normalizeDb(parsed);
+          setlist = [];
+        } else {
+          throw new Error("JSON formatı tanınmadı.");
+        }
+        save(); saveSet();
+        renderFilters();
+        apply(); renderTable();
+        renderSetlist();
+        toast("İçe aktarıldı", `${db.length} kayıt`);
+      }catch(e){
+        toast("İçe aktarma başarısız", e.message || String(e));
+      }
+    };
+    fr.readAsText(file);
+  }
+
+  function normalizeDb(arr){
+    return arr.map(x=>({
+      id: x.id || uid(),
+      parcaAdi: safe(x.parcaAdi),
+      tempo: safe(x.tempo),
+      olcu: safe(x.olcu),
+      style: safe(x.style),
+      chord: safe(x.chord),
+      tur: safe(x.tur),
+      notlar: safe(x.notlar),
+      sozler: safe(x.sozler),
+      chordDetay: safe(x.chordDetay),
+      createdAt: x.createdAt || nowISO(),
+      updatedAt: x.updatedAt || nowISO()
+    }));
+  }
+
+  // ===== Google Drive (akıllı: isimle bul → overwrite) =====
+  async function ensureGoogleReady(){
+    if(!GOOGLE_API_KEY || !GOOGLE_CLIENT_ID){
+      throw new Error("Drive entegrasyonu için GOOGLE_API_KEY ve GOOGLE_CLIENT_ID girilmeli.");
+    }
+    if(!gapiInited){
+      await new Promise((resolve)=>{
+        const check=()=> window.gapi ? resolve() : setTimeout(check, 50);
+        check();
+      });
+      await new Promise((resolve, reject)=>{
+        gapi.load("client", async ()=>{
+          try{
+            await gapi.client.init({
+              apiKey: GOOGLE_API_KEY,
+              discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"]
+            });
+            gapiInited = true;
+            resolve();
+          }catch(e){ reject(e); }
+        });
+      });
+    }
+    if(!gisInited){
+      await new Promise((resolve)=>{
+        const check=()=> (window.google && google.accounts && google.accounts.oauth2) ? resolve() : setTimeout(check, 50);
+        check();
+      });
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: DRIVE_SCOPES,
+        callback: ()=>{}
+      });
+      gisInited = true;
+    }
+  }
+
+  async function getAccessToken(){
+    await ensureGoogleReady();
+    if(accessToken) return accessToken;
+    accessToken = await new Promise((resolve, reject)=>{
+      tokenClient.callback = (resp)=>{
+        if(resp && resp.access_token) resolve(resp.access_token);
+        else reject(new Error("OAuth token alınamadı."));
+      };
+      tokenClient.requestAccessToken({ prompt:"consent" });
+    });
+    gapi.client.setToken({ access_token: accessToken });
+    return accessToken;
+  }
+
+  function getDriveFileId(){ return localStorage.getItem(DRIVE_FILE_ID_KEY) || ""; }
+  function setDriveFileId(id){ localStorage.setItem(DRIVE_FILE_ID_KEY, id); }
+
+  async function findDriveFileIdByName(name){
+    // drive.file scope: sadece bu app'in oluşturduğu dosyaları görürsün
+    // Yani ilk create'i bu app yapmalı, sonra aynı adı bulur/günceller.
+    const q = `name='${name.replace(/'/g,"\\'")}' and trashed=false`;
+    const res = await gapi.client.drive.files.list({
+      q,
+      spaces: "drive",
+      fields: "files(id,name,modifiedTime)",
+      pageSize: 10
+    });
+    const files = res.result.files || [];
+    if(files.length === 0) return "";
+    // en son modify edileni seç
+    files.sort((a,b)=> (a.modifiedTime < b.modifiedTime ? 1 : -1));
+    return files[0].id || "";
+  }
+
+  async function driveBackupSmart(){
+    try{
+      toast("Drive yedek", "Yetkilendirme…");
+      await getAccessToken();
+
+      let fileId = getDriveFileId();
+      if(!fileId){
+        toast("Drive yedek", "Dosya adıyla aranıyor…");
+        fileId = await findDriveFileIdByName(DRIVE_FILENAME);
+        if(fileId) setDriveFileId(fileId);
+      }
+
+      const content = JSON.stringify(buildBackupObject(), null, 2);
+      const boundary = "-------314159265358979323846";
+      const delimiter = "\r\n--" + boundary + "\r\n";
+      const closeDelim = "\r\n--" + boundary + "--";
+
+      const metadata = { name: DRIVE_FILENAME, mimeType: "application/json" };
+
+      const multipartRequestBody =
+        delimiter +
+        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
+        JSON.stringify(metadata) +
+        delimiter +
+        "Content-Type: application/json\r\n\r\n" +
+        content +
+        closeDelim;
+
+      if(fileId){
+        toast("Drive yedek", "Overwrite (güncelleme)…");
+        await gapi.client.request({
+          path: "/upload/drive/v3/files/" + encodeURIComponent(fileId),
+          method: "PATCH",
+          params: { uploadType: "multipart" },
+          headers: { "Content-Type": "multipart/related; boundary=" + boundary },
+          body: multipartRequestBody
+        });
+        toast("Drive yedek ✅", "Dosya overwrite edildi");
+      } else {
+        toast("Drive yedek", "Yeni dosya oluşturuluyor…");
+        const res = await gapi.client.request({
+          path: "/upload/drive/v3/files",
+          method: "POST",
+          params: { uploadType: "multipart" },
+          headers: { "Content-Type": "multipart/related; boundary=" + boundary },
+          body: multipartRequestBody
+        });
+        if(res?.result?.id) setDriveFileId(res.result.id);
+        toast("Drive yedek ✅", "Yeni dosya oluşturuldu");
+      }
+    }catch(e){
+      toast("Drive yedek başarısız", e.message || String(e));
+    }
+  }
+
+  async function driveRestore(){
+    try{
+      toast("Drive geri yük", "Yetkilendirme…");
+      await getAccessToken();
+
+      let fileId = getDriveFileId();
+      if(!fileId){
+        toast("Drive geri yük", "Dosya adıyla aranıyor…");
+        fileId = await findDriveFileIdByName(DRIVE_FILENAME);
+        if(fileId) setDriveFileId(fileId);
+      }
+      if(!fileId) throw new Error("Drive’da yedek bulunamadı. Önce 'Drive’a Yedekle' yap.");
+
+      toast("Drive geri yük", "Dosya indiriliyor…");
+      const res = await gapi.client.request({
+        path: "/drive/v3/files/" + encodeURIComponent(fileId),
+        method: "GET",
+        params: { alt: "media" }
+      });
+
+      const parsed = (typeof res.body === "string") ? JSON.parse(res.body) : res.result;
+      if(parsed && parsed.db && Array.isArray(parsed.db)){
+        db = normalizeDb(parsed.db);
+        setlist = Array.isArray(parsed.setlist) ? parsed.setlist : [];
+      } else if(Array.isArray(parsed)){
+        db = normalizeDb(parsed);
+        setlist = [];
+      } else {
+        throw new Error("Drive içeriği beklenen formatta değil.");
+      }
+
+      save(); saveSet();
+      renderFilters();
+      apply(); renderTable();
+      renderSetlist();
+      toast("Geri yüklendi ✅", `${db.length} kayıt`);
+    }catch(e){
+      toast("Drive geri yük başarısız", e.message || String(e));
+    }
+  }
+
+  // ===== Setlist =====
+  function renderSetlist(){
+    const box = $("setList");
+    box.innerHTML = "";
+
+    const items = setlist
+      .map(id => getById(id))
+      .filter(Boolean);
+
+    $("setCount").textContent = `${items.length} parça`;
+
+    if(items.length === 0){
+      box.innerHTML = `<div class="muted" style="font-size:13px">Setlist boş. Üstten arayıp ekle.</div>`;
+      return;
+    }
+
+    items.forEach((r, idx)=>{
+      const row = document.createElement("div");
+      row.className = "setRow";
+      row.draggable = true;
+      row.dataset.id = r.id;
+
+      // drag handle
+      const handle = document.createElement("div");
+      handle.className = "dragHandle";
+      handle.textContent = "↕ sürükle";
+
+      const title = document.createElement("div");
+      title.className = "setTitle";
+      const b = document.createElement("b");
+      b.textContent = r.parcaAdi || "(isimsiz)";
+      const meta = document.createElement("span");
+      meta.textContent = [r.tur, r.style, r.olcu, r.tempo].filter(x=>safe(x).trim()).join(" • ");
+      title.appendChild(b);
+      title.appendChild(meta);
+
+      const btns = document.createElement("div");
+      btns.className = "setBtns";
+      const open = document.createElement("button");
+      open.className = "btn btn-secondary btn-xs";
+      open.textContent = "Sözler";
+      open.addEventListener("click", ()=> openLyrics(r.id));
+
+      const remove = document.createElement("button");
+      remove.className = "btn btn-danger btn-xs";
+      remove.textContent = "Çıkar";
+      remove.addEventListener("click", ()=> {
+        setlist = setlist.filter(x=>x!==r.id);
+        saveSet();
+        renderSetlist();
+        toast("Setlist’ten çıkarıldı", r.parcaAdi||"");
+      });
+
+      btns.appendChild(open);
+      btns.appendChild(remove);
+
+      row.appendChild(handle);
+      row.appendChild(title);
+      row.appendChild(btns);
+
+      // drag events
+      row.addEventListener("dragstart", (e)=>{
+        row.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", r.id);
+      });
+      row.addEventListener("dragend", ()=>{
+        row.classList.remove("dragging");
+      });
+
+      row.addEventListener("dragover", (e)=> e.preventDefault());
+      row.addEventListener("drop", (e)=>{
+        e.preventDefault();
+        const fromId = e.dataTransfer.getData("text/plain");
+        const toId = r.id;
+        if(!fromId || fromId === toId) return;
+        reorderSetlist(fromId, toId);
+      });
+
+      box.appendChild(row);
+    });
+  }
+
+  function reorderSetlist(fromId, toId){
+    const fromIndex = setlist.indexOf(fromId);
+    const toIndex = setlist.indexOf(toId);
+    if(fromIndex < 0 || toIndex < 0) return;
+
+    setlist.splice(fromIndex, 1);
+    setlist.splice(toIndex, 0, fromId);
+
+    saveSet();
+    renderSetlist();
+    toast("Setlist sıralandı");
+  }
+
+  function renderSetAddResults(query){
+    const box = $("setAddResults");
+    box.innerHTML = "";
+    const q = query.trim().toLowerCase();
+    if(!q){
+      box.innerHTML = `<div class="muted" style="font-size:12px">Arama yazınca sonuçlar çıkar.</div>`;
+      return;
+    }
+
+    const results = db
+      .filter(r => safe(r.parcaAdi).toLowerCase().includes(q))
+      .slice(0, 20);
+
+    if(results.length === 0){
+      box.innerHTML = `<div class="muted" style="font-size:12px">Sonuç yok.</div>`;
+      return;
+    }
+
+    results.forEach(r=>{
+      const line = document.createElement("div");
+      line.className = "chk";
+      line.style.cursor = "pointer";
+      line.innerHTML = `<span style="color:var(--accent)">${safe(r.parcaAdi)}</span>
+        <span class="muted" style="font-size:12px;margin-left:6px">${[r.tur,r.style].filter(x=>safe(x).trim()).join(" • ")}</span>`;
+      line.addEventListener("click", ()=>{
+        if(!setlist.includes(r.id)){
+          setlist.push(r.id);
+          saveSet();
+          renderSetlist();
+          toast("Setlist’e eklendi", r.parcaAdi||"");
+        } else {
+          toast("Zaten setlist’te", r.parcaAdi||"");
+        }
+      });
+      box.appendChild(line);
+    });
+  }
+
+  function clearSetlist(){
+    setlist = [];
+    saveSet();
+    renderSetlist();
+    toast("Setlist temizlendi");
+  }
+
+  // ===== View Mode =====
+  function showRepertuar(){
+    $("viewRepertuar").style.display = "";
+    $("viewSetlist").style.display = "none";
+  }
+  function showSetlist(){
+    $("viewRepertuar").style.display = "none";
+    $("viewSetlist").style.display = "";
+    renderSetlist();
+  }
+
+  // ===== Events =====
+  $("search").addEventListener("input", (e)=>{
+    searchTerm = e.target.value;
+    apply(); renderTable();
+  });
+
+  $("btnAdd").addEventListener("click", addRow);
+  $("mClose").addEventListener("click", closeModal);
+  $("backdrop").addEventListener("click", (e)=>{ if(e.target === $("backdrop")) closeModal(); });
+
+  $("btnExport").addEventListener("click", exportJSON);
+  $("btnImport").addEventListener("click", ()=> $("importFile").click());
+  $("importFile").addEventListener("change", (e)=>{
+    const f = e.target.files?.[0];
+    if(f) importJSON(f);
+    e.target.value = "";
+  });
+
+  $("btnClearFilters").addEventListener("click", clearFilters);
+
+  $("btnDriveBackup").addEventListener("click", driveBackupSmart);
+  $("btnDriveRestore").addEventListener("click", driveRestore);
+
+  $("btnModeRep").addEventListener("click", showRepertuar);
+  $("btnModeSet").addEventListener("click", showSetlist);
+
+  $("setSearch").addEventListener("input", (e)=> renderSetAddResults(e.target.value));
+  $("btnSetClear").addEventListener("click", clearSetlist);
+
+  // ===== Boot =====
+  load();
+
+  if(db.length === 0){
+    const exId = uid();
+    db.push({
+      id: exId,
+      parcaAdi: "Örnek Parça",
+      tempo: "120",
+      olcu: "4/4",
+      style: "Pop Ballad",
+      chord: "Am | G | F | E",
+      tur: "Pop",
+      notlar: "Intro: 4 bar, çıkışta ritim kır",
+      sozler: "Sözleri buraya yaz… (uzunsa da rahatça görünecek)",
+      chordDetay: "Notalar/notlar: burada dursun…",
+      createdAt: nowISO(),
+      updatedAt: nowISO()
+    });
+    save();
+    if(setlist.length === 0){
+      setlist = [exId];
+      saveSet();
+    }
+  }
+
+  renderFilters();
+  apply();
+  renderHeader();
+  renderTable();
+  renderSetlist();
+</script>
+</body>
+</html>
